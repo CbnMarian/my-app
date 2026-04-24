@@ -1,19 +1,19 @@
 import React from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { clearAll } from '@/src/services/storage';
-import { theme, spacing, radii, typography } from '@/src/theme/tokens';
+import { palette, spacing, typography } from '@/src/theme/tokens';
 import { t } from '@/src/i18n';
+import { AuroraBackground } from '@/src/components/AuroraBackground';
+import { GlassCard } from '@/src/components/GlassCard';
 import { SettingsRow } from '@/src/components/SettingsRow';
+import { Kicker } from '@/src/components/Kicker';
+import { TopBar } from '@/src/components/TopBar';
 
 export default function SettingsScreen() {
-  const scheme = useColorScheme() ?? 'light';
-  const colors = theme[scheme];
-
+  const insets = useSafeAreaInsets();
   const handleClear = () => {
     Alert.alert(t('settings.clearData'), 'Ok?', [
       { text: t('common.cancel'), style: 'cancel' },
@@ -28,45 +28,59 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ThemedView style={[styles.root, { backgroundColor: colors.bg }]}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <ThemedText style={[typography.title, { color: colors.text, marginBottom: spacing.lg }]}>
-          {t('settings.title')}
-        </ThemedText>
+    <View style={styles.root}>
+      <AuroraBackground intensity={0.6} />
+      <TopBar />
 
-        <View style={[styles.section, { backgroundColor: colors.bgElevated, borderColor: colors.border }]}>
-          <SettingsRow label={t('settings.language')} value="Auto" />
-          <SettingsRow label={t('settings.theme')} value="Auto" />
+      <ScrollView
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingTop: insets.top + 72, paddingBottom: insets.bottom + 96 },
+        ]}
+      >
+        <View style={styles.header}>
+          <Kicker label="Preferences" color={palette.purple200} withRule />
+          <Text style={styles.title}>{t('settings.title')}</Text>
         </View>
 
-        <View style={[styles.section, { backgroundColor: colors.bgElevated, borderColor: colors.border }]}>
-          <SettingsRow label={t('settings.upgradePro')} value="→" />
-        </View>
+        <GlassCard padding={0} radius="lg">
+          <SettingsRow label={t('settings.language')} value="Auto" first />
+          <SettingsRow label={t('settings.theme')} value="Dark" />
+        </GlassCard>
 
-        <View style={[styles.section, { backgroundColor: colors.bgElevated, borderColor: colors.border }]}>
-          <SettingsRow label={t('settings.privacy')} value="→" />
-          <SettingsRow label={t('settings.terms')} value="→" />
-          <SettingsRow label={t('settings.about')} value="→" />
+        <GlassCard padding={0} radius="lg">
+          <SettingsRow label={t('settings.upgradePro')} onPress={() => {}} first />
+        </GlassCard>
+
+        <GlassCard padding={0} radius="lg">
+          <SettingsRow label={t('settings.privacy')} onPress={() => {}} first />
+          <SettingsRow label={t('settings.terms')} onPress={() => {}} />
+          <SettingsRow label={t('settings.about')} onPress={() => {}} />
           <SettingsRow
             label={t('settings.version')}
             value={Constants.expoConfig?.version ?? '0.0.0'}
           />
-        </View>
+        </GlassCard>
 
-        <View style={[styles.section, { backgroundColor: colors.bgElevated, borderColor: colors.border }]}>
-          <SettingsRow label={t('settings.clearData')} destructive onPress={handleClear} />
-        </View>
+        <GlassCard padding={0} radius="lg">
+          <SettingsRow label={t('settings.clearData')} destructive onPress={handleClear} first />
+        </GlassCard>
       </ScrollView>
-    </ThemedView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  scroll: { padding: spacing.xl, paddingTop: spacing['3xl'], gap: spacing.md },
-  section: {
-    borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
+  root: { flex: 1, backgroundColor: palette.bg, overflow: 'hidden' },
+  scroll: {
+    paddingHorizontal: spacing.xl,
+    gap: spacing.lg,
+  },
+  header: { gap: spacing.sm, marginBottom: spacing.md },
+  title: {
+    fontFamily: 'Fraunces_700Bold',
+    color: palette.textHi,
+    fontSize: 40,
+    letterSpacing: -1.2,
   },
 });

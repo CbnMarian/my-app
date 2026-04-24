@@ -1,24 +1,31 @@
 import React, { useCallback } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, Text } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  FadeInUp,
+} from 'react-native-reanimated';
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { parseInstagramZip } from '@/src/services/instagramParser';
 import { saveSnapshot } from '@/src/services/snapshotManager';
 import { useDataStore } from '@/src/stores/useDataStore';
-import { theme, spacing, radii, typography } from '@/src/theme/tokens';
-import { t } from '@/src/i18n';
-import { PrimaryButton } from '@/src/components/PrimaryButton';
+import { palette, spacing, typography } from '@/src/theme/tokens';
+import { t, useLocaleStore } from '@/src/i18n';
+import { AuroraBackground } from '@/src/components/AuroraBackground';
+import { GradientButton } from '@/src/components/GradientButton';
 import { StepCard } from '@/src/components/StepCard';
+import { Kicker } from '@/src/components/Kicker';
+import { MarqueeBanner } from '@/src/components/MarqueeBanner';
+import { TopBar } from '@/src/components/TopBar';
 
 export default function HomeScreen() {
-  const scheme = useColorScheme() ?? 'light';
-  const colors = theme[scheme];
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const locale = useLocaleStore((s) => s.locale);
   const { setResult, setError, setProcessing, isProcessing, error } = useDataStore();
 
   const handleImport = useCallback(async () => {
@@ -28,7 +35,6 @@ export default function HomeScreen() {
         copyToCacheDirectory: true,
         multiple: false,
       });
-
       if (pick.canceled || !pick.assets?.[0]) return;
 
       setProcessing(true);
@@ -51,79 +57,120 @@ export default function HomeScreen() {
   }, [router, setError, setProcessing, setResult]);
 
   return (
-    <ThemedView style={[styles.root, { backgroundColor: colors.bg }]}>
+    <View style={styles.root}>
+      <AuroraBackground />
+      <TopBar />
+
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingTop: insets.top + 72, paddingBottom: insets.bottom + 96 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.hero}>
-          <View style={[styles.badge, { backgroundColor: colors.accent }]}>
-            <ThemedText style={{ color: colors.tint, fontWeight: '600', fontSize: 13 }}>
-              100% safe • no password
-            </ThemedText>
+        <Animated.View
+          key={`kicker-${locale}`}
+          entering={FadeInDown.duration(600).springify().damping(18)}
+        >
+          <Kicker label="Observatory · 01" color={palette.textLo} withRule />
+        </Animated.View>
+
+        <Animated.View
+          key={`hero-${locale}`}
+          entering={FadeInUp.delay(120).duration(700).springify().damping(20)}
+          style={styles.hero}
+        >
+          <Text style={styles.headline}>
+            {t('home.heroTitleLine1')}{' '}
+            <Text style={styles.italic}>{t('home.heroTitleLine1Italic')}</Text>
+          </Text>
+          <Text style={styles.headline}>{t('home.heroTitleLine2')}</Text>
+          <Text style={styles.subhead}>{t('home.heroSubtitle')}</Text>
+        </Animated.View>
+
+        <Animated.View
+          key={`cta-${locale}`}
+          entering={FadeIn.delay(280).duration(500)}
+          style={styles.ctaBlock}
+        >
+          <GradientButton
+            label={isProcessing ? t('common.processing') : t('home.importButton')}
+            loading={isProcessing}
+            onPress={handleImport}
+          />
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <MarqueeBanner
+            items={[
+              t('home.heroSubtitle'),
+              'No password required',
+              'Processed on your device',
+              'Never uploaded to a server',
+              'Zero tracking · Zero analytics',
+              'Data stays with you',
+            ]}
+          />
+        </Animated.View>
+
+        <View style={styles.section}>
+          <Kicker label={t('home.howItWorks')} color={palette.textLo} withRule />
+          <View style={styles.steps}>
+            <StepCard
+              step={1}
+              title={t('home.stepOneTitle')}
+              body={t('home.stepOneBody')}
+              delay={320}
+            />
+            <StepCard
+              step={2}
+              title={t('home.stepTwoTitle')}
+              body={t('home.stepTwoBody')}
+              delay={420}
+            />
+            <StepCard
+              step={3}
+              title={t('home.stepThreeTitle')}
+              body={t('home.stepThreeBody')}
+              delay={520}
+            />
           </View>
-          <ThemedText style={[typography.title, { color: colors.text, marginTop: spacing.md }]}>
-            {t('home.heroTitle')}
-          </ThemedText>
-          <ThemedText
-            style={[typography.body, { color: colors.textMuted, marginTop: spacing.sm }]}
-          >
-            {t('home.heroSubtitle')}
-          </ThemedText>
-        </View>
-
-        <PrimaryButton
-          label={isProcessing ? t('common.processing') : t('home.importButton')}
-          onPress={handleImport}
-          disabled={isProcessing}
-          icon={isProcessing ? <ActivityIndicator color="#fff" /> : undefined}
-        />
-
-        {error ? (
-          <View style={[styles.errorBox, { backgroundColor: '#FEE4E4' }]}>
-            <ThemedText style={{ color: '#9A1D1D' }}>{error}</ThemedText>
-          </View>
-        ) : null}
-
-        <View style={styles.howItWorks}>
-          <ThemedText style={[typography.heading, { color: colors.text }]}>
-            {t('home.howItWorks')}
-          </ThemedText>
-
-          <StepCard
-            step={1}
-            title={t('home.stepOneTitle')}
-            body={t('home.stepOneBody')}
-          />
-          <StepCard
-            step={2}
-            title={t('home.stepTwoTitle')}
-            body={t('home.stepTwoBody')}
-          />
-          <StepCard
-            step={3}
-            title={t('home.stepThreeTitle')}
-            body={t('home.stepThreeBody')}
-          />
         </View>
       </ScrollView>
-    </ThemedView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  scroll: { padding: spacing.xl, paddingTop: spacing['3xl'], gap: spacing.xl },
-  hero: { gap: spacing.xs },
-  badge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: radii.full,
+  root: { flex: 1, backgroundColor: palette.bg, overflow: 'hidden' },
+  scroll: {
+    paddingHorizontal: spacing.xl,
+    gap: spacing.xl,
   },
-  errorBox: {
-    padding: spacing.md,
-    borderRadius: radii.md,
+  hero: { gap: spacing.md },
+  headline: {
+    fontFamily: 'Fraunces_700Bold',
+    color: palette.textHi,
+    fontSize: 40,
+    lineHeight: 44,
+    letterSpacing: -1.2,
   },
-  howItWorks: { gap: spacing.md, marginTop: spacing.md },
+  italic: {
+    fontFamily: 'Fraunces_600SemiBold_Italic',
+    color: palette.textHi,
+  },
+  subhead: {
+    ...typography.body,
+    color: palette.textMid,
+    fontSize: 15,
+    marginTop: spacing.sm,
+    maxWidth: 320,
+    lineHeight: 22,
+  },
+  ctaBlock: { gap: spacing.lg },
+  errorText: {
+    ...typography.caption,
+    color: palette.danger,
+    textAlign: 'center',
+  },
+  section: { gap: spacing.lg, marginTop: spacing.md },
+  steps: { gap: spacing.md },
 });
