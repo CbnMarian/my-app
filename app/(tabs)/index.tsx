@@ -1,98 +1,129 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useCallback } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import { File } from 'expo-file-system';
+import { useRouter } from 'expo-router';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { parseInstagramZip } from '@/src/services/instagramParser';
+import { saveSnapshot } from '@/src/services/snapshotManager';
+import { useDataStore } from '@/src/stores/useDataStore';
+import { theme, spacing, radii, typography } from '@/src/theme/tokens';
+import { t } from '@/src/i18n';
+import { PrimaryButton } from '@/src/components/PrimaryButton';
+import { StepCard } from '@/src/components/StepCard';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const scheme = useColorScheme() ?? 'light';
+  const colors = theme[scheme];
+  const router = useRouter();
+  const { setResult, setError, setProcessing, isProcessing, error } = useDataStore();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const handleImport = useCallback(async () => {
+    try {
+      const pick = await DocumentPicker.getDocumentAsync({
+        type: ['application/zip', 'application/x-zip-compressed', 'public.zip-archive', '*/*'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+
+      if (pick.canceled || !pick.assets?.[0]) return;
+
+      setProcessing(true);
+      setError(null);
+
+      const asset = pick.assets[0];
+      const file = new File(asset.uri);
+      const buffer = await file.arrayBuffer();
+
+      const result = await parseInstagramZip(buffer);
+      await saveSnapshot(result);
+      setResult(result);
+      setProcessing(false);
+      router.push('/results');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : t('errors.unknown');
+      setError(message);
+      setProcessing(false);
+    }
+  }, [router, setError, setProcessing, setResult]);
+
+  return (
+    <ThemedView style={[styles.root, { backgroundColor: colors.bg }]}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.hero}>
+          <View style={[styles.badge, { backgroundColor: colors.accent }]}>
+            <ThemedText style={{ color: colors.tint, fontWeight: '600', fontSize: 13 }}>
+              100% safe • no password
+            </ThemedText>
+          </View>
+          <ThemedText style={[typography.title, { color: colors.text, marginTop: spacing.md }]}>
+            {t('home.heroTitle')}
+          </ThemedText>
+          <ThemedText
+            style={[typography.body, { color: colors.textMuted, marginTop: spacing.sm }]}
+          >
+            {t('home.heroSubtitle')}
+          </ThemedText>
+        </View>
+
+        <PrimaryButton
+          label={isProcessing ? t('common.processing') : t('home.importButton')}
+          onPress={handleImport}
+          disabled={isProcessing}
+          icon={isProcessing ? <ActivityIndicator color="#fff" /> : undefined}
+        />
+
+        {error ? (
+          <View style={[styles.errorBox, { backgroundColor: '#FEE4E4' }]}>
+            <ThemedText style={{ color: '#9A1D1D' }}>{error}</ThemedText>
+          </View>
+        ) : null}
+
+        <View style={styles.howItWorks}>
+          <ThemedText style={[typography.heading, { color: colors.text }]}>
+            {t('home.howItWorks')}
+          </ThemedText>
+
+          <StepCard
+            step={1}
+            title={t('home.stepOneTitle')}
+            body={t('home.stepOneBody')}
+          />
+          <StepCard
+            step={2}
+            title={t('home.stepTwoTitle')}
+            body={t('home.stepTwoBody')}
+          />
+          <StepCard
+            step={3}
+            title={t('home.stepThreeTitle')}
+            body={t('home.stepThreeBody')}
+          />
+        </View>
+      </ScrollView>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  root: { flex: 1 },
+  scroll: { padding: spacing.xl, paddingTop: spacing['3xl'], gap: spacing.xl },
+  hero: { gap: spacing.xs },
+  badge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radii.full,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  errorBox: {
+    padding: spacing.md,
+    borderRadius: radii.md,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+  howItWorks: { gap: spacing.md, marginTop: spacing.md },
 });
